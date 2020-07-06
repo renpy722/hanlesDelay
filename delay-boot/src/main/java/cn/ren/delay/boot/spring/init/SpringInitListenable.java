@@ -11,6 +11,7 @@ import org.springframework.context.ApplicationListener;
 import cn.ren.delay.boot.spring.util.AopTargetUtils;
 import ren.handler.MessageHandler;
 import ren.util.CommonState;
+import ren.util.DelayScheduleHelper;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
@@ -32,6 +33,9 @@ public class SpringInitListenable implements ApplicationListener , ApplicationCo
         // init，还有就是MessageHandler的构建
         annotionScan();
         messageHandler = new SpringHandler();
+        DelayScheduleHelper delayScheduleHelper = DelayScheduleHelper.getInstance();
+        delayScheduleHelper.setMessageHandler(messageHandler);
+        delayScheduleHelper.Init();
     }
 
     @Override

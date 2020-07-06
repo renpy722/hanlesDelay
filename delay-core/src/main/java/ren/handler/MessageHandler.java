@@ -4,5 +4,5 @@ public interface MessageHandler {
 
     void init();
 
-    ExecuteHandler getDelayExecuteHandler();
+    ExecuteHandler getDelayExecuteHandler(String key);
 }

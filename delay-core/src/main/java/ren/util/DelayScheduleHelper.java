@@ -2,6 +2,8 @@ package ren.util;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import ren.handler.ExecuteHandler;
+import ren.handler.MessageHandler;
 import ren.process.ProcessMessageStory;
 
 import java.util.List;
@@ -16,6 +18,7 @@ public class DelayScheduleHelper {
     private static volatile DelayScheduleHelper instance = null;
 
     private MessageStroy messageStroy;
+    private MessageHandler messageHandler;
     private String runType = CommonState.RunModule.PROCESS.getCode();
     private ThreadPoolExecutor poolExecutor;
 
@@ -38,6 +41,9 @@ public class DelayScheduleHelper {
         this.runType = module.getCode();
     }
 
+    public void setMessageHandler(MessageHandler handler){
+        this.messageHandler = handler;
+    }
     /**
      * 组件初始化
      */
@@ -65,6 +71,9 @@ public class DelayScheduleHelper {
                 //todo 下面需要保证现在已经读取到的任务处理完成，接下来需要保证所有未处理的任务要持久化
             }
         }));
+        TimeWheel timeWheel = new TimeWheel();
+        Thread dealThread = new Thread(timeWheel);
+        dealThread.start();
         CommonState.nowState = CommonState.RunStatus.RUNING.getCode();
     }
 
@@ -88,12 +97,23 @@ public class DelayScheduleHelper {
                 List<DelayMessage> delayMessages = messageStroy.queryMessageToRun();
                 if (delayMessages!=null&& delayMessages.size()>0){
                     Logger.debug("once get DelayMessage size ：{}",delayMessages.size());
-                    //todo DealMessage
-                    delayMessages.forEach(item -> {
-                        poolExecutor.submit(()->{
-                            String dealKey = item.getDealKey();
+                    try{
+                        delayMessages.forEach(item -> {
+                            poolExecutor.submit(()->{
+                                String dealKey = item.getDealKey();
+                                ExecuteHandler delayExecuteHandler = messageHandler.getDelayExecuteHandler(dealKey);
+                                try {
+                                    delayExecuteHandler.getMethod().invoke(delayExecuteHandler.getTarget(),item);
+                                }catch (Exception e){
+                                    e.printStackTrace();
+                                    Logger.error("run delay message execute fail ：{},fail key :{}",e,dealKey);
+                                }
+                            });
                         });
-                    });
+                    }catch (Exception e){
+                        Logger.error("delay Thread run error ：{}",e);
+                        e.printStackTrace();
+                    }
                 }
                 try {
                     Thread.sleep(1000);
