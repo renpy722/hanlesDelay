@@ -6,7 +6,8 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
-        <module name="hanlesDelay" />
+        <module name="delaycore" />
+        <module name="delayboot" />
       </profile>
     </annotationProcessing>
   </component>
