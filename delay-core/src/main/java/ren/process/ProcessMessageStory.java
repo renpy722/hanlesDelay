@@ -27,6 +27,9 @@ public class ProcessMessageStory implements MessageStroy {
             lockArry.add(new ReentrantLock());
         }
     }
+
+    // todo 开启持久化
+
     @Override
     public void messageStory(DelayMessage t) {
         if (CommonState.nowState!= CommonState.RunStatus.RUNING.getCode()){

@@ -6,7 +6,11 @@ import ren.handler.ExecuteHandler;
 import ren.handler.MessageHandler;
 import ren.process.ProcessMessageStory;
 
+import java.io.*;
+import java.net.URL;
 import java.util.List;
+import java.util.Objects;
+import java.util.Properties;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -23,6 +27,11 @@ public class DelayScheduleHelper {
     private String runType = CommonState.RunModule.PROCESS.getCode();
     private ThreadPoolExecutor poolExecutor;
     private Lock queryMsgLock = new ReentrantLock();
+    private String messageCacheLocal = "off";
+    /**
+     * 执行间隔毫秒值
+     */
+    private int sleepTime = 1000;
 
     public static DelayScheduleHelper getInstance(){
         if (instance==null){
@@ -49,20 +58,53 @@ public class DelayScheduleHelper {
     /**
      * 组件初始化
      */
-    public void Init(){
+    public void Init() throws IOException {
 
+        //读取classpath目录下的配置文件
+        URL classPath = Thread.currentThread().getContextClassLoader().getResource("");
+        String classPathUrl = classPath.getPath();
+        InputStream inputStream = new FileInputStream(classPathUrl+ File.separator+"delay.properties");
+        Properties properties = new Properties();
+        properties.load(inputStream);
+        String runModule = properties.getProperty("delay.module").trim();
+        String threadCore = properties.getProperty("delay.thread.core").trim();
+        String threadMax = properties.getProperty("delay.thread.max").trim();
+        String threadQueueSize = properties.getProperty("delay.thread.queueSize").trim();
+        String messageDealRate = properties.getProperty("delay.deal.rate").trim();
+        if (runModule.equalsIgnoreCase(CommonState.RunModule.DB.getCode())||runModule.equalsIgnoreCase(CommonState.RunModule.PROCESS.getCode())){
+            Logger.info("delay run module use Custome Config : "+runModule);
+            if (runModule.equalsIgnoreCase(CommonState.RunModule.DB.getCode())){
+                setRunType(CommonState.RunModule.DB);
+            }else {
+                setRunType(CommonState.RunModule.PROCESS);
+            }
+        }
         if (runType.equals(CommonState.RunModule.DB.getCode())){
             Logger.info("延迟调度组件初始化，运行模式：DB");
         }else if (runType.equals(CommonState.RunModule.PROCESS.getCode())){
             Logger.info("延迟调度组件初始化，运行模式：PROCESS");
             messageStroy = new ProcessMessageStory();
+            //判断是否配置开启消息持久化
+            if (messageCacheLocal.equalsIgnoreCase(CommonState.messageRedlay)){
+                Logger.info("延迟调度组件初始化，PROCESS 模式，本地持久化开启");
+
+            }
         }else {
             Logger.error("延迟调度组件初始化失败");
             return;
         }
+        //check线程池参数是否正常
+        if (threadCore!=null&&threadMax!=null&&threadQueueSize!=null){
+            Logger.info("delay run ThreadConfig use Custome Config ");
+            poolExecutor = new ThreadPoolExecutor(Integer.valueOf(threadCore), Integer.valueOf(threadMax), 60, TimeUnit.SECONDS,new ArrayBlockingQueue<>(Integer.valueOf(threadQueueSize)));
+        }else {
+            poolExecutor = new ThreadPoolExecutor(2, 4, 60, TimeUnit.SECONDS,new ArrayBlockingQueue<>(300));
+        }
 
-        poolExecutor = new ThreadPoolExecutor(2, 4, 60, TimeUnit.SECONDS,new ArrayBlockingQueue<>(300));        //todo 后续可做优化，将配置信息抽离出来，由用户自己控制
-
+        //处理速率配置
+        if (messageDealRate!=null){
+            sleepTime = Integer.valueOf(messageDealRate);
+        }
         //todo 持久化的数据再加载到内存中
 
         Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
@@ -135,7 +177,7 @@ public class DelayScheduleHelper {
                     }
                 }
                 try {
-                    Thread.sleep(1000);
+                    Thread.sleep(sleepTime);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }

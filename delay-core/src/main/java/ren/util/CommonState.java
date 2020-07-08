@@ -21,6 +21,11 @@ public class CommonState {
     public static long maxTimeOnceDeal = 800;
 
     /**
+     *  开启消息持久化标识
+     */
+    public static String messageRedlay = "on";
+
+    /**
      * 运行状态
      */
     public enum RunStatus{
