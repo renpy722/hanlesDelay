@@ -55,7 +55,7 @@ public class SpringInitListenable implements  ApplicationContextAware {
             try{
                 Object target = AopTargetUtils.getTarget(bean);
                 scanFieldAnnotion(target.getClass(),target);
-                scanMethodAnnotion(target.getClass(),bean);
+                scanMethodAnnotion(target.getClass(),target);
             }catch (Exception e){
                 LOGGER.error("获取Bean的真实对象操作异常");
             }

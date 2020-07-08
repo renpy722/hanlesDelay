@@ -71,6 +71,7 @@ public class ProcessMessageStory implements MessageStroy {
         if (sortMessagIdList.keySet().size()==0){
             return new ArrayList<>();
         }
+        Logger.debug("now time Message Size :"+sortMessagIdList.keySet().size());
         Long firstKey = sortMessagIdList.firstKey();
         Long nowTime = System.currentTimeMillis();
         if (firstKey.longValue()>=nowTime.longValue()){

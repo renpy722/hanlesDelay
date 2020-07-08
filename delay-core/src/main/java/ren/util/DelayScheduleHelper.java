@@ -8,7 +8,6 @@ import ren.process.ProcessMessageStory;
 
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
@@ -86,8 +85,8 @@ public class DelayScheduleHelper {
         }));
         TimeWheel timeWheel = new TimeWheel();
         Thread dealThread = new Thread(timeWheel);
-        dealThread.start();
         CommonState.nowState = CommonState.RunStatus.RUNING.getCode();
+        dealThread.start();
     }
 
     /**
@@ -119,7 +118,7 @@ public class DelayScheduleHelper {
                                         String dealKey = item.getDealKey();
                                         ExecuteHandler delayExecuteHandler = messageHandler.getDelayExecuteHandler(dealKey);
                                         try {
-                                            delayExecuteHandler.getMethod().invoke(delayExecuteHandler.getTarget(),item);
+                                            delayExecuteHandler.getMethod().invoke(delayExecuteHandler.getTarget(),item.getData());
                                         }catch (Exception e){
                                             e.printStackTrace();
                                             Logger.error("run delay message execute fail ：{},fail key :{}",e,dealKey);
