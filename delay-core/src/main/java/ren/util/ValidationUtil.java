@@ -12,17 +12,16 @@ public class ValidationUtil {
     /**
      * 开启快速结束模式 failFast (true)
      */
-    private static Validator validator = Validation.byProvider(HibernateValidator.class).configure().failFast(false).buildValidatorFactory().getValidator();
+    private static Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
 
     /**
      * 校验对象
      *
      * @param t      bean
-     * @param groups 校验组
      * @return ValidResult
      */
-    public static <T> void validateBean(T t, Class<?>... groups) {
-        Set<ConstraintViolation<T>> violationSet = validator.validate(t, groups);
+    public static <T> void validateBean(T t) {
+        Set<ConstraintViolation<T>> violationSet = validator.validate(t);
         boolean hasError = violationSet != null && violationSet.size() > 0;
         if (hasError){
             AtomicReference<String> errorMsg = new AtomicReference<>("");

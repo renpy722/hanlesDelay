@@ -9,16 +9,19 @@ import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.ApplicationEvent;
 import org.springframework.context.ApplicationListener;
 import cn.ren.delay.boot.spring.util.AopTargetUtils;
+import org.springframework.stereotype.Component;
 import ren.handler.MessageHandler;
 import ren.util.CommonState;
 import ren.util.DelayScheduleHelper;
 
+import javax.annotation.PostConstruct;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.*;
 
-public class SpringInitListenable implements ApplicationListener , ApplicationContextAware {
+@Component
+public class SpringInitListenable implements  ApplicationContextAware {
 
     private static Logger LOGGER = LoggerFactory.getLogger(SpringInitListenable.class);
 
@@ -27,8 +30,8 @@ public class SpringInitListenable implements ApplicationListener , ApplicationCo
     public static Map<Class, List<FieldRelateObj>> annotationListMap = new HashMap<Class, List<FieldRelateObj>>();
     public static Map<Class, List<FieldRelateObj>> annotationMethodListMap = new HashMap<Class, List<FieldRelateObj>>();
 
-    @Override
-    public void onApplicationEvent(ApplicationEvent applicationEvent) {
+    @PostConstruct
+    public void init() {
         //项目的初始化改到这个地方，在这个地方进行容器对象的获取分析，然后进行组件的DelayScheduleHelper的
         // init，还有就是MessageHandler的构建
         annotionScan();
@@ -107,7 +110,7 @@ public class SpringInitListenable implements ApplicationListener , ApplicationCo
                     List<FieldRelateObj> fieldRelateObjs = annotationMethodListMap.get(annotation.getClass());
                     if (fieldRelateObjs == null){
                         fieldRelateObjs = new ArrayList<>();
-                        annotationListMap.put(annotation.getClass(),fieldRelateObjs);
+                        annotationMethodListMap.put(itemAnno,fieldRelateObjs);
                     }
                     fieldRelateObjs.add(itemRelateObje);
                 }

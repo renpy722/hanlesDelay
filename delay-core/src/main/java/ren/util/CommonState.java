@@ -1,6 +1,7 @@
 package ren.util;
 
 
+import ren.handler.DelayExecute;
 import ren.handler.ExecuteHandler;
 
 import java.lang.annotation.Annotation;
@@ -82,5 +83,5 @@ public class CommonState {
         }
     }
 
-    public static Class[] needScanAnnos = new Class[]{ExecuteHandler.class};
+    public static Class[] needScanAnnos = new Class[]{DelayExecute.class};
 }

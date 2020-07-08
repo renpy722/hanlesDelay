@@ -11,6 +11,8 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class DelayScheduleHelper {
 
@@ -21,6 +23,7 @@ public class DelayScheduleHelper {
     private MessageHandler messageHandler;
     private String runType = CommonState.RunModule.PROCESS.getCode();
     private ThreadPoolExecutor poolExecutor;
+    private Lock queryMsgLock = new ReentrantLock();
 
     public static DelayScheduleHelper getInstance(){
         if (instance==null){
@@ -68,7 +71,17 @@ public class DelayScheduleHelper {
             public void run() {
                 Logger.warn("run shoutDown。。。。");
                 CommonState.nowState = CommonState.RunStatus.STOP.getCode();
-                //todo 下面需要保证现在已经读取到的任务处理完成，接下来需要保证所有未处理的任务要持久化
+                while (true){
+                    if (queryMsgLock.tryLock()){
+                        break;
+                    }
+                    try {
+                        Thread.sleep(50);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+                poolExecutor.shutdown();
             }
         }));
         TimeWheel timeWheel = new TimeWheel();
@@ -94,25 +107,32 @@ public class DelayScheduleHelper {
                 if (CommonState.nowState==CommonState.RunStatus.STOP.getCode()){
                     break;
                 }
-                List<DelayMessage> delayMessages = messageStroy.queryMessageToRun();
-                if (delayMessages!=null&& delayMessages.size()>0){
-                    Logger.debug("once get DelayMessage size ：{}",delayMessages.size());
+                boolean lockRs = queryMsgLock.tryLock();
+                if (lockRs){
                     try{
-                        delayMessages.forEach(item -> {
-                            poolExecutor.submit(()->{
-                                String dealKey = item.getDealKey();
-                                ExecuteHandler delayExecuteHandler = messageHandler.getDelayExecuteHandler(dealKey);
-                                try {
-                                    delayExecuteHandler.getMethod().invoke(delayExecuteHandler.getTarget(),item);
-                                }catch (Exception e){
-                                    e.printStackTrace();
-                                    Logger.error("run delay message execute fail ：{},fail key :{}",e,dealKey);
-                                }
-                            });
-                        });
-                    }catch (Exception e){
-                        Logger.error("delay Thread run error ：{}",e);
-                        e.printStackTrace();
+                        List<DelayMessage> delayMessages = messageStroy.queryMessageToRun();
+                        if (delayMessages!=null&& delayMessages.size()>0){
+                            Logger.debug("once get DelayMessage size ：{}",delayMessages.size());
+                            try{
+                                delayMessages.forEach(item -> {
+                                    poolExecutor.submit(()->{
+                                        String dealKey = item.getDealKey();
+                                        ExecuteHandler delayExecuteHandler = messageHandler.getDelayExecuteHandler(dealKey);
+                                        try {
+                                            delayExecuteHandler.getMethod().invoke(delayExecuteHandler.getTarget(),item);
+                                        }catch (Exception e){
+                                            e.printStackTrace();
+                                            Logger.error("run delay message execute fail ：{},fail key :{}",e,dealKey);
+                                        }
+                                    });
+                                });
+                            }catch (Exception e){
+                                Logger.error("delay Thread run error ：{}",e);
+                                e.printStackTrace();
+                            }
+                        }
+                    }finally {
+                        queryMsgLock.unlock();
                     }
                 }
                 try {

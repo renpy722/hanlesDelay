@@ -35,7 +35,7 @@ public class ProcessMessageStory implements MessageStroy {
         if (Objects.isNull(t)){
             throw new SendFailException("延迟消息不能为空");
         }
-        ValidationUtil.validateBean(t,DelayMessage.class);
+        ValidationUtil.validateBean(t);
         if (System.currentTimeMillis()>t.getExecuteTime()){
             throw new SendFailException("延迟执行时间必须大于当前时间");
         }

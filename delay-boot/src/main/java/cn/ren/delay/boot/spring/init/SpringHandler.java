@@ -23,6 +23,9 @@ public class SpringHandler implements MessageHandler {
     public void init() {
         Map<Class, List<SpringInitListenable.FieldRelateObj>> objStore =  SpringInitListenable.annotationMethodListMap;
         List<SpringInitListenable.FieldRelateObj> fieldRelateObjs = objStore.get(DelayExecute.class);
+        if (fieldRelateObjs==null||fieldRelateObjs.size()==0){
+            return;
+        }
         fieldRelateObjs.forEach( item ->{
             DelayExecute delayExecute = (DelayExecute) item.getAnnotation();
             if (handlerMap.containsKey(delayExecute.dealKey())){
