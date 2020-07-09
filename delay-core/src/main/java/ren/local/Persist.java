@@ -3,6 +3,7 @@ package ren.local;
 import ren.util.DelayMessage;
 
 import java.util.List;
+import java.util.NavigableMap;
 
 /**
  * 持久化策略：
@@ -10,7 +11,7 @@ import java.util.List;
  * 执行持久化的时候，需要处理一下当前队列中的消息的最小时间，将小于最小时间的del
  */
 public interface Persist {
-    void runPersist(long minTime);
+    void runPersist(NavigableMap<Long, List<DelayMessage>> map);
 
     List<DelayMessage> loadFromPersist();
 }

@@ -7,6 +7,7 @@ import ren.util.DelayMessage;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
+import java.util.NavigableMap;
 
 /**
  * 文件操作方式实现持久化
@@ -20,12 +21,13 @@ public class FilePersistImpl implements Persist {
 
     private File messageStore ;
 
-    private Thread messageThread;
-
 
     @Override
-    public void runPersist(long minTime) {
+    public void runPersist(NavigableMap<Long, List<DelayMessage>> map) {
+        //在第一次读取文件时要建立一个索引吧，类似于，然后每次操作的时候除了维护数据，还有维护这个索引，这个索引的功能就是为了更快的定位数据
+        //消息存储db
 
+        //删除老的消息，删除的是执行时间已经过了的数据
     }
 
     @Override
@@ -67,6 +69,10 @@ public class FilePersistImpl implements Persist {
     }
 
     private FilePersistImpl() {
+    }
+
+    public static FilePersistImpl getInstance(){
+        return FilePersistImplHolder.instance;
     }
 
 

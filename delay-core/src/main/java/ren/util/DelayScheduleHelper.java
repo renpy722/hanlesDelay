@@ -27,7 +27,7 @@ public class DelayScheduleHelper {
     private String runType = CommonState.RunModule.PROCESS.getCode();
     private ThreadPoolExecutor poolExecutor;
     private Lock queryMsgLock = new ReentrantLock();
-    private String messageCacheLocal = "off";
+    private String messageCacheLocal = GlobalConfig.messagePersist;
     /**
      * 执行间隔毫秒值
      */
@@ -60,20 +60,10 @@ public class DelayScheduleHelper {
      */
     public void Init() throws IOException {
 
-        //读取classpath目录下的配置文件
-        URL classPath = Thread.currentThread().getContextClassLoader().getResource("");
-        String classPathUrl = classPath.getPath();
-        InputStream inputStream = new FileInputStream(classPathUrl+ File.separator+"delay.properties");
-        Properties properties = new Properties();
-        properties.load(inputStream);
-        String runModule = properties.getProperty("delay.module").trim();
-        String threadCore = properties.getProperty("delay.thread.core").trim();
-        String threadMax = properties.getProperty("delay.thread.max").trim();
-        String threadQueueSize = properties.getProperty("delay.thread.queueSize").trim();
-        String messageDealRate = properties.getProperty("delay.deal.rate").trim();
-        if (runModule.equalsIgnoreCase(CommonState.RunModule.DB.getCode())||runModule.equalsIgnoreCase(CommonState.RunModule.PROCESS.getCode())){
-            Logger.info("delay run module use Custome Config : "+runModule);
-            if (runModule.equalsIgnoreCase(CommonState.RunModule.DB.getCode())){
+
+        if (GlobalConfig.runModule.equalsIgnoreCase(CommonState.RunModule.DB.getCode())||GlobalConfig.runModule.equalsIgnoreCase(CommonState.RunModule.PROCESS.getCode())){
+            Logger.info("delay run module use Custome Config : "+GlobalConfig.runModule);
+            if (GlobalConfig.runModule.equalsIgnoreCase(CommonState.RunModule.DB.getCode())){
                 setRunType(CommonState.RunModule.DB);
             }else {
                 setRunType(CommonState.RunModule.PROCESS);
@@ -87,24 +77,17 @@ public class DelayScheduleHelper {
             //判断是否配置开启消息持久化
             if (messageCacheLocal.equalsIgnoreCase(CommonState.messageRedlay)){
                 Logger.info("延迟调度组件初始化，PROCESS 模式，本地持久化开启");
-
+                messageStroy.initPersid();
             }
         }else {
             Logger.error("延迟调度组件初始化失败");
             return;
         }
         //check线程池参数是否正常
-        if (threadCore!=null&&threadMax!=null&&threadQueueSize!=null){
-            Logger.info("delay run ThreadConfig use Custome Config ");
-            poolExecutor = new ThreadPoolExecutor(Integer.valueOf(threadCore), Integer.valueOf(threadMax), 60, TimeUnit.SECONDS,new ArrayBlockingQueue<>(Integer.valueOf(threadQueueSize)));
-        }else {
-            poolExecutor = new ThreadPoolExecutor(2, 4, 60, TimeUnit.SECONDS,new ArrayBlockingQueue<>(300));
-        }
-
+        poolExecutor = new ThreadPoolExecutor(Integer.valueOf(GlobalConfig.threadCore), Integer.valueOf(GlobalConfig.threadMax)
+                , 60, TimeUnit.SECONDS,new ArrayBlockingQueue<>(Integer.valueOf(GlobalConfig.threadQueueSize)));
         //处理速率配置
-        if (messageDealRate!=null){
-            sleepTime = Integer.valueOf(messageDealRate);
-        }
+        sleepTime = Integer.valueOf(GlobalConfig.messageDealRate);
         //todo 持久化的数据再加载到内存中
 
         Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {

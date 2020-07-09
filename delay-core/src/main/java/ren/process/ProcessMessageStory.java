@@ -1,7 +1,10 @@
 package ren.process;
 
+import com.alibaba.fastjson.JSON;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import ren.local.FilePersistImpl;
+import ren.local.Persist;
 import ren.util.*;
 
 import java.util.*;
@@ -22,13 +25,104 @@ public class ProcessMessageStory implements MessageStroy {
 
     private static List<Lock> lockArry = new ArrayList<>();
 
+    private Persist persist;
+
+
+
+    /**
+     * 每次截取时，多截取下前100毫秒秒的数据，防止有执行压力过大问题，丢失部分数据未存储
+     */
+    private Integer repeatConvertTime = 100;
+
+    /**
+     * 上次的执行时间，用于检测是否压力过大
+     */
+    private long lastRunTime = 0;
+
+    private double failRate = 0.3;
+
     static {
         for (int i=0;i<lockNumbs;i++){
             lockArry.add(new ReentrantLock());
         }
     }
 
-    // todo 开启持久化
+    public void initPersid(){
+        persist = FilePersistImpl.getInstance();
+        //读取持久化数据，取出尚未处理的数据，放入Map中，因为此时持久化服务尚未初始化完成，所以需要等启动成功后再执行
+        List<DelayMessage> delayMessages = persist.loadFromPersist();
+        GlobalConfig.GlobalThreadPool.submit(()->{
+            int runFlag = 0;
+           while (CommonState.nowState!=CommonState.RunStatus.RUNING.getCode()&&runFlag<60){
+               try {
+                   Thread.sleep(1000);
+                   runFlag+=1;
+               } catch (InterruptedException e) {
+                   e.printStackTrace();
+               }
+           }
+           if (CommonState.nowState!=CommonState.RunStatus.RUNING.getCode()){
+               Logger.error("超过60秒延迟服务尚未准备完成，取消加载持久化数据");
+           }else {
+               delayMessages.forEach(item -> messageStory(item));
+               CommonState.presistState = CommonState.presistSuccessFlag;
+           }
+        });
+
+        Thread persidThread = new Thread(()->{
+
+            while (CommonState.nowState!=CommonState.RunStatus.RUNING.getCode()&&
+                    (GlobalConfig.messagePersist.equalsIgnoreCase(CommonState.messageRedlay)&&CommonState.presistState != CommonState.presistSuccessFlag)){
+                try {
+                    Thread.sleep(1000);
+                    Logger.info("等待延迟服务启动成功，等待持久化消息加载完成。。。。。");
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            Logger.info("消息持久化线程启动");
+            while (true){
+                runPersidOnce();
+                //todo 删除操作留在持久化组件里面自己去维护 oldMessageDel();
+                try {
+                    Thread.sleep(GlobalConfig.persistRate);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+        persidThread.start();
+    }
+
+    @Override
+    public void runPersidOnce() {
+        try{
+            Logger.debug("once deal messag local store");
+            checkServerPress();
+            long nowTime = System.currentTimeMillis();
+            long needDealTime = nowTime + GlobalConfig.persistAfterSecond * 1000;
+            NavigableMap<Long, List<DelayMessage>> longListNavigableMap = sortMessagIdList.subMap(needDealTime - repeatConvertTime, true, needDealTime + GlobalConfig.persistRate, true);
+            for (Long itemKey : longListNavigableMap.keySet()){
+                persist.runPersist(itemKey,longListNavigableMap.get(itemKey));
+            }
+            lastRunTime = System.currentTimeMillis();
+        }catch (Exception e){
+            Logger.error("延迟消息本地持久化失败");
+        }
+    }
+
+    /**
+     * 运行时间检测，防止出现消息持久化丢失问题
+     */
+    private void checkServerPress() {
+        if (lastRunTime==0){
+            return;
+        }
+        long nowTime = System.currentTimeMillis();
+        if ((nowTime-lastRunTime)>GlobalConfig.persistRate*(1+failRate)){
+            Logger.warn("消息持久化线程检测：服务压力过大可能会出现消息持久化丢失");
+        }
+    }
 
     @Override
     public void messageStory(DelayMessage t) {

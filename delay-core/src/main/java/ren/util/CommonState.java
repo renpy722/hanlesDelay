@@ -8,7 +8,7 @@ import java.lang.annotation.Annotation;
 
 public class CommonState {
 
-    public static int nowState = -1;
+    public static volatile int nowState = -1;
 
     /**
      * 并发限制，最大有20个散列时间能够进行同时操作
@@ -23,7 +23,17 @@ public class CommonState {
     /**
      *  开启消息持久化标识
      */
-    public static String messageRedlay = "on";
+    public static volatile String messageRedlay = "on";
+
+    /**
+     * 持久化消息加载状态
+     */
+    public static volatile int presistState = -1;
+
+    /**
+     * 持久化消息加载完毕状态
+     */
+    public static final int presistSuccessFlag = 1;
 
     /**
      * 运行状态
