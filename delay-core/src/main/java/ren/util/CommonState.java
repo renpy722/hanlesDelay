@@ -35,6 +35,8 @@ public class CommonState {
      */
     public static final int presistSuccessFlag = 1;
 
+
+
     /**
      * 运行状态
      */

@@ -1,13 +1,16 @@
 package ren.local;
 
+import com.alibaba.fastjson.JSON;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ren.util.DelayMessage;
+import ren.util.GlobalConfig;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.List;
-import java.util.NavigableMap;
+import java.io.*;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * 文件操作方式实现持久化
@@ -21,20 +24,137 @@ public class FilePersistImpl implements Persist {
 
     private File messageStore ;
 
+    private Lock fileLock = new ReentrantLock();
+
+
+    private List<DelayMessage> localDelayMsg = new ArrayList<>();
+
+    public List<DelayMessage> getLocalDelayMsg() {
+        return localDelayMsg;
+    }
 
     @Override
-    public void runPersist(NavigableMap<Long, List<DelayMessage>> map) {
-        //在第一次读取文件时要建立一个索引吧，类似于，然后每次操作的时候除了维护数据，还有维护这个索引，这个索引的功能就是为了更快的定位数据
-        //消息存储db
+    public void runPersist(List<DelayMessage> list) {
 
-        //删除老的消息，删除的是执行时间已经过了的数据
+        localDelayMsg.addAll(list);
+        GlobalConfig.GlobalThreadPool.submit(()->{
+            try {
+                if (!fileLock.tryLock(2, TimeUnit.SECONDS)){
+                    LOGGER.warn("正在执行数据落库，本次退出");
+                    return;
+                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            try {
+                TreeMap<Long, List<DelayMessage>> oldMsg = readFile();
+                if (getLocalDelayMsg().size()==0){
+                    LOGGER.debug("本次缓存无更新，尝试删除旧的执行过的数据");
+                }else {
+                    getLocalDelayMsg().forEach(item ->{
+                        if(oldMsg.containsKey(item.getExecuteTime())){
+                            oldMsg.get(item.getExecuteTime()).add(item);
+                        }else {
+                            List itemList = new ArrayList();
+                            itemList.add(item);
+                            oldMsg.put(item.getExecuteTime(),itemList);
+                        }
+                    });
+                }
+                Long firstKey = oldMsg.firstKey();
+                Long nowTime = System.currentTimeMillis();
+                while (firstKey.longValue() <= nowTime.longValue()-1000 ){
+                    oldMsg.remove(firstKey);
+                    firstKey = oldMsg.firstKey();
+                }
+                writeFile(oldMsg);
+                LOGGER.debug("once persist execute finush");
+                localDelayMsg.clear();
+            } catch (IOException e ) {
+                LOGGER.error("执行消息文件存储失败：{}",e);
+                e.printStackTrace();
+                localDelayMsg.clear();
+            }finally {
+                fileLock.unlock();
+            }
+
+        });
+    }
+
+    private class FileThread implements Runnable{
+
+        private List<DelayMessage> delayMessages = null;
+        @Override
+        public void run() {
+
+        }
+
+        public void setDelayMessages(List<DelayMessage> paraList){
+            delayMessages = paraList;
+        }
     }
 
     @Override
     public List<DelayMessage> loadFromPersist() {
-        return null;
+        try {
+            TreeMap<Long, List<DelayMessage>> result = readFile();
+            List<DelayMessage> listResult = new ArrayList<>();
+            result.values().forEach(item -> listResult.addAll(item));
+            return listResult;
+        } catch (IOException e) {
+            e.printStackTrace();
+            LOGGER.error("读取文件系统持久化数据失败");
+        }
+        return new ArrayList<>();
     }
 
+    private TreeMap<Long, List<DelayMessage>> readFile() throws IOException{
+        TreeMap<Long, List<DelayMessage>> result = null;
+        File msgFile = new File(FileLocalPath+File.separator+fileName);
+        FileReader fileReader = new FileReader(msgFile);
+        BufferedReader reader = new BufferedReader(fileReader);
+        try{
+            //操作文件，返回格式数据
+            StringBuilder resultStr = new StringBuilder();
+            String lineStr = reader.readLine();
+            while (lineStr!=null){
+                resultStr.append(lineStr);
+                lineStr = reader.readLine();
+            }
+            if (resultStr==null||resultStr.length()==0){
+                return new TreeMap<>();
+            }
+            result = JSON.parseObject(resultStr.toString(),TreeMap.class);
+            return result;
+        }catch (Exception e){
+            LOGGER.error("执行文件操作异常：{}",e);
+        }finally {
+            reader.close();
+            fileReader.close();
+        }
+        return new TreeMap<>();
+    }
+
+    private void writeFile(TreeMap<Long, List<DelayMessage>> map) throws IOException {
+        TreeMap<Long, List<DelayMessage>> result = null;
+        File msgFile = new File(FileLocalPath+File.separator+fileName);
+        if (msgFile.exists()){
+            msgFile.delete();
+        }
+        msgFile.createNewFile();
+        FileWriter fileWriter = new FileWriter(msgFile);
+        BufferedWriter bufferedWriter = new BufferedWriter(fileWriter);
+        try{
+            bufferedWriter.write(JSON.toJSONString(map));
+        }catch (Exception e){
+            LOGGER.error("执行文件操作异常：{}",e);
+        }finally {
+            bufferedWriter.close();
+            fileWriter.close();
+        }
+
+
+    }
     public void init(){
         try {
             initCheck();
@@ -75,10 +195,4 @@ public class FilePersistImpl implements Persist {
         return FilePersistImplHolder.instance;
     }
 
-
-    public static void main(String[] args) throws IOException {
-        File file = new File("/usr/local/delayCache/");
-        file.mkdirs();
-        System.out.println("------");
-    }
 }

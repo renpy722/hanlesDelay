@@ -49,9 +49,9 @@ public class GlobalConfig {
     public static int persistAfterSecond = 60;
 
     /**
-     * 消息持久化执行的速率，越小越快，建议范围大于[500-5000]，如果小于500，则采用默认值
+     * 消息持久化执行的速率，越小越快，建议范围大于[10000-60000]，如果小于10000，则采用默认值
      */
-    public static int persistRate = 1000;
+    public static int persistRate = 10000;
 
     public static ThreadPoolExecutor GlobalThreadPool = new ThreadPoolExecutor(threadCore/2,(threadCore/2)+1,
             70, TimeUnit.SECONDS,new ArrayBlockingQueue<>(50));
@@ -97,7 +97,9 @@ public class GlobalConfig {
                     GlobalConfig.messagePersist = persistSwitch;
                 }
                 GlobalConfig.persistAfterSecond = Integer.valueOf(persistTime);
-                if (Integer.valueOf(persistRate)>=500&&Integer.valueOf(persistRate)<=5000){
+                //执行速率需要满足条件范围在[10000-60000]毫秒之间，且执行速率要小于持久化的时间差
+                if (Integer.valueOf(persistRate)>=10000&&Integer.valueOf(persistRate)<=60000&&Integer.valueOf(persistRate)
+                    < GlobalConfig.persistAfterSecond*1000 ){
                     GlobalConfig.persistRate = Integer.valueOf(persistRate);
                 }
 

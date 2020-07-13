@@ -74,11 +74,7 @@ public class DelayScheduleHelper {
         }else if (runType.equals(CommonState.RunModule.PROCESS.getCode())){
             Logger.info("延迟调度组件初始化，运行模式：PROCESS");
             messageStroy = new ProcessMessageStory();
-            //判断是否配置开启消息持久化
-            if (messageCacheLocal.equalsIgnoreCase(CommonState.messageRedlay)){
-                Logger.info("延迟调度组件初始化，PROCESS 模式，本地持久化开启");
-                messageStroy.initPersid();
-            }
+
         }else {
             Logger.error("延迟调度组件初始化失败");
             return;
@@ -112,6 +108,11 @@ public class DelayScheduleHelper {
         Thread dealThread = new Thread(timeWheel);
         CommonState.nowState = CommonState.RunStatus.RUNING.getCode();
         dealThread.start();
+        //判断是否配置开启消息持久化
+        if (messageCacheLocal.equalsIgnoreCase(CommonState.messageRedlay)){
+            Logger.info("延迟调度组件初始化，PROCESS 模式，本地持久化开启");
+            messageStroy.initPersid();
+        }
     }
 
     /**

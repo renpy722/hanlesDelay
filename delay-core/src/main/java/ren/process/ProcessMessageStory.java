@@ -23,9 +23,13 @@ public class ProcessMessageStory implements MessageStroy {
      */
     private TreeMap<Long, List<DelayMessage>> sortMessagIdList = new TreeMap<>();
 
+    private List<DelayMessage> notStoryList = new ArrayList<>();
+
     private static List<Lock> lockArry = new ArrayList<>();
 
     private Persist persist;
+
+    private Lock persistLock = new ReentrantLock();
 
 
 
@@ -39,7 +43,7 @@ public class ProcessMessageStory implements MessageStroy {
      */
     private long lastRunTime = 0;
 
-    private double failRate = 0.3;
+    private double failRate = 0.1;
 
     static {
         for (int i=0;i<lockNumbs;i++){
@@ -49,6 +53,7 @@ public class ProcessMessageStory implements MessageStroy {
 
     public void initPersid(){
         persist = FilePersistImpl.getInstance();
+        persist.init();
         //读取持久化数据，取出尚未处理的数据，放入Map中，因为此时持久化服务尚未初始化完成，所以需要等启动成功后再执行
         List<DelayMessage> delayMessages = persist.loadFromPersist();
         GlobalConfig.GlobalThreadPool.submit(()->{
@@ -64,7 +69,11 @@ public class ProcessMessageStory implements MessageStroy {
            if (CommonState.nowState!=CommonState.RunStatus.RUNING.getCode()){
                Logger.error("超过60秒延迟服务尚未准备完成，取消加载持久化数据");
            }else {
-               delayMessages.forEach(item -> messageStory(item));
+               for (DelayMessage item : delayMessages){
+                   Logger.info("单条消息处理");
+                   messageStory(item);
+               }
+               Logger.info("预读持久化数据加载完成，总数：{}",delayMessages.size());
                CommonState.presistState = CommonState.presistSuccessFlag;
            }
         });
@@ -83,7 +92,6 @@ public class ProcessMessageStory implements MessageStroy {
             Logger.info("消息持久化线程启动");
             while (true){
                 runPersidOnce();
-                //todo 删除操作留在持久化组件里面自己去维护 oldMessageDel();
                 try {
                     Thread.sleep(GlobalConfig.persistRate);
                 } catch (InterruptedException e) {
@@ -100,12 +108,19 @@ public class ProcessMessageStory implements MessageStroy {
             Logger.debug("once deal messag local store");
             checkServerPress();
             long nowTime = System.currentTimeMillis();
-            long needDealTime = nowTime + GlobalConfig.persistAfterSecond * 1000;
-            NavigableMap<Long, List<DelayMessage>> longListNavigableMap = sortMessagIdList.subMap(needDealTime - repeatConvertTime, true, needDealTime + GlobalConfig.persistRate, true);
-            for (Long itemKey : longListNavigableMap.keySet()){
-                persist.runPersist(itemKey,longListNavigableMap.get(itemKey));
+            boolean lockRs = persistLock.tryLock(2, TimeUnit.SECONDS);
+            if (lockRs){
+                try {
+                    //此处数据操作要异步，因为这个地方待落库数据的操作有锁，会阻塞任务发送
+                    persist.runPersist(notStoryList);
+                    notStoryList.clear();
+                    lastRunTime = System.currentTimeMillis();
+                }finally {
+                    persistLock.unlock();
+                }
+            }else {
+                Logger.warn("执行缓存队列持久化获取锁失败");
             }
-            lastRunTime = System.currentTimeMillis();
         }catch (Exception e){
             Logger.error("延迟消息本地持久化失败");
         }
@@ -127,13 +142,16 @@ public class ProcessMessageStory implements MessageStroy {
     @Override
     public void messageStory(DelayMessage t) {
         if (CommonState.nowState!= CommonState.RunStatus.RUNING.getCode()){
+            Logger.error("延迟组件不可用，请稍后重试");
             throw new SendFailException("延迟组件不可用，请稍后重试");
         }
         if (Objects.isNull(t)){
+            Logger.error("延迟消息不能为空");
             throw new SendFailException("延迟消息不能为空");
         }
         ValidationUtil.validateBean(t);
         if (System.currentTimeMillis()>t.getExecuteTime()){
+            Logger.error("延迟执行时间必须大于当前时间");
             throw new SendFailException("延迟执行时间必须大于当前时间");
         }
         Logger.info("send delay message :{}",t);
@@ -142,6 +160,7 @@ public class ProcessMessageStory implements MessageStroy {
         try {
             boolean lockSuccess = currentLock.tryLock(1, TimeUnit.SECONDS);
             if (!lockSuccess){
+                Logger.error("延迟消息发送失败，请尽量错峰延迟的执行时间");
                 throw new SendFailException("延迟消息发送失败，请尽量错峰延迟的执行时间");
             }
             try{
@@ -151,6 +170,21 @@ public class ProcessMessageStory implements MessageStroy {
                     sortMessagIdList.put(executeTime,delayMessages);
                 }
                 delayMessages.add(t);
+                //判断是否需要执行持久化
+                if (System.currentTimeMillis()+GlobalConfig.persistAfterSecond*1000<t.getExecuteTime()){
+                    Logger.info("消息执行时间小于：{}秒，不需要进行持久化",GlobalConfig.persistAfterSecond);
+                    return;
+                }
+                while (!persistLock.tryLock(20,TimeUnit.MILLISECONDS)){
+                    Logger.warn("try to get persist Lock .....");
+                }
+                try {
+                    notStoryList.add(t);
+                }catch (Exception e){
+                    Logger.error("添加消息到持久化List失败");
+                }finally {
+                    persistLock.unlock();
+                }
                 Logger.info("发送延迟消息成功，执行时间：{},消息内容：{}",executeTime,t);
             }catch (Exception e){
 
@@ -196,6 +230,7 @@ public class ProcessMessageStory implements MessageStroy {
             if (!itemLockRs){
                 //获取锁失败，重新入队
                 needDealKeys.add(itemKey);
+                continue;
             }
             try{
                 //获取锁成功，取出数据
