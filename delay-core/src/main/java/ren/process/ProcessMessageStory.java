@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import ren.local.FilePersistImpl;
 import ren.local.Persist;
 import ren.util.*;
+import sun.rmi.runtime.Log;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -69,10 +70,13 @@ public class ProcessMessageStory implements MessageStroy {
            if (CommonState.nowState!=CommonState.RunStatus.RUNING.getCode()){
                Logger.error("超过60秒延迟服务尚未准备完成，取消加载持久化数据");
            }else {
-               for (DelayMessage item : delayMessages){
-                   Logger.info("单条消息处理");
-                   messageStory(item);
-               }
+               delayMessages.forEach(item -> {
+                   try{
+                       messageStory(item);
+                   }catch (Exception e){
+                        Logger.error("一条消息预加载失败：{}",JSON.toJSONString(item));
+                   }
+               });
                Logger.info("预读持久化数据加载完成，总数：{}",delayMessages.size());
                CommonState.presistState = CommonState.presistSuccessFlag;
            }
@@ -171,7 +175,7 @@ public class ProcessMessageStory implements MessageStroy {
                 }
                 delayMessages.add(t);
                 //判断是否需要执行持久化
-                if (System.currentTimeMillis()+GlobalConfig.persistAfterSecond*1000<t.getExecuteTime()){
+                if ((System.currentTimeMillis()+GlobalConfig.persistAfterSecond*1000)>t.getExecuteTime()){
                     Logger.info("消息执行时间小于：{}秒，不需要进行持久化",GlobalConfig.persistAfterSecond);
                     return;
                 }

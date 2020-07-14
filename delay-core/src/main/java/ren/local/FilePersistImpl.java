@@ -1,6 +1,8 @@
 package ren.local;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.TypeReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ren.util.DelayMessage;
@@ -65,6 +67,9 @@ public class FilePersistImpl implements Persist {
                 Long nowTime = System.currentTimeMillis();
                 while (firstKey.longValue() <= nowTime.longValue()-1000 ){
                     oldMsg.remove(firstKey);
+                    if (oldMsg.size()==0){
+                        break;
+                    }
                     firstKey = oldMsg.firstKey();
                 }
                 writeFile(oldMsg);
@@ -98,7 +103,7 @@ public class FilePersistImpl implements Persist {
     public List<DelayMessage> loadFromPersist() {
         try {
             TreeMap<Long, List<DelayMessage>> result = readFile();
-            List<DelayMessage> listResult = new ArrayList<>();
+            List<DelayMessage> listResult = new ArrayList<DelayMessage>();
             result.values().forEach(item -> listResult.addAll(item));
             return listResult;
         } catch (IOException e) {
@@ -124,7 +129,7 @@ public class FilePersistImpl implements Persist {
             if (resultStr==null||resultStr.length()==0){
                 return new TreeMap<>();
             }
-            result = JSON.parseObject(resultStr.toString(),TreeMap.class);
+            result = JSONObject.parseObject(resultStr.toString(),new TypeReference<TreeMap<Long,List<DelayMessage>>>(){});
             return result;
         }catch (Exception e){
             LOGGER.error("执行文件操作异常：{}",e);
