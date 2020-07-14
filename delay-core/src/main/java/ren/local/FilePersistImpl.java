@@ -115,6 +115,7 @@ public class FilePersistImpl implements Persist {
 
     private TreeMap<Long, List<DelayMessage>> readFile() throws IOException{
         TreeMap<Long, List<DelayMessage>> result = null;
+        initCheck();
         File msgFile = new File(FileLocalPath+File.separator+fileName);
         FileReader fileReader = new FileReader(msgFile);
         BufferedReader reader = new BufferedReader(fileReader);
@@ -136,6 +137,7 @@ public class FilePersistImpl implements Persist {
         }finally {
             reader.close();
             fileReader.close();
+            msgFile.delete();
         }
         return new TreeMap<>();
     }
@@ -183,7 +185,6 @@ public class FilePersistImpl implements Persist {
         }
         File dbFile = new File(FileLocalPath+File.separator+fileName);
         if (!dbFile.exists()){
-            LOGGER.warn("delay cache local store file not exist，will to create new one");
             dbFile.createNewFile();
         }
         messageStore = dbFile;

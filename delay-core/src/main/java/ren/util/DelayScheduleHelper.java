@@ -1,5 +1,7 @@
 package ren.util;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ren.handler.ExecuteHandler;
@@ -7,6 +9,7 @@ import ren.handler.MessageHandler;
 import ren.process.ProcessMessageStory;
 
 import java.io.*;
+import java.lang.reflect.Parameter;
 import java.net.URL;
 import java.util.List;
 import java.util.Objects;
@@ -144,7 +147,13 @@ public class DelayScheduleHelper {
                                         String dealKey = item.getDealKey();
                                         ExecuteHandler delayExecuteHandler = messageHandler.getDelayExecuteHandler(dealKey);
                                         try {
-                                            delayExecuteHandler.getMethod().invoke(delayExecuteHandler.getTarget(),item.getData());
+                                            Object param = item.getData();
+                                            Class paramType = delayExecuteHandler.getMethod().getParameterTypes()[0];
+                                            if (item.getData() instanceof JSONObject){
+                                                //读取的文件中消息的类型可能是JSONObject，需要进行处理转化
+                                                param = JSON.parseObject(JSON.toJSONString(param),paramType);
+                                            }
+                                            delayExecuteHandler.getMethod().invoke(delayExecuteHandler.getTarget(),param);
                                         }catch (Exception e){
                                             e.printStackTrace();
                                             Logger.error("run delay message execute fail ：{},fail key :{}",e,dealKey);
