@@ -9,12 +9,12 @@ public interface MessageStroy {
      */
     public void initPersid();
 
-    public void runPersidOnce();
+    public void runPersidOnce(boolean forceAll);
 
     /**
      * 消息存储
      */
-    public void messageStory(DelayMessage t);
+    public void messageStory(DelayMessage t,boolean checkTimeVaild);
 
     /**
      * 消息获取

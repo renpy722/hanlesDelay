@@ -72,7 +72,7 @@ public class ProcessMessageStory implements MessageStroy {
            }else {
                delayMessages.forEach(item -> {
                    try{
-                       messageStory(item);
+                       messageStory(item,false);
                    }catch (Exception e){
                         Logger.error("一条消息预加载失败：{}",JSON.toJSONString(item));
                    }
@@ -95,7 +95,7 @@ public class ProcessMessageStory implements MessageStroy {
             }
             Logger.info("消息持久化线程启动");
             while (true){
-                runPersidOnce();
+                runPersidOnce(false);
                 try {
                     Thread.sleep(GlobalConfig.persistRate);
                 } catch (InterruptedException e) {
@@ -107,7 +107,7 @@ public class ProcessMessageStory implements MessageStroy {
     }
 
     @Override
-    public void runPersidOnce() {
+    public void runPersidOnce(boolean forceAll) {
         try{
             Logger.debug("once deal messag local store");
             checkServerPress();
@@ -116,6 +116,10 @@ public class ProcessMessageStory implements MessageStroy {
             if (lockRs){
                 try {
                     //此处数据操作要异步，因为这个地方待落库数据的操作有锁，会阻塞任务发送
+                    if (forceAll){
+                        Logger.info("强制执行消息全量落库");
+                        sortMessagIdList.values().forEach(item ->notStoryList.addAll(item));
+                    }
                     persist.runPersist(notStoryList);
                     notStoryList.clear();
                     lastRunTime = System.currentTimeMillis();
@@ -144,7 +148,7 @@ public class ProcessMessageStory implements MessageStroy {
     }
 
     @Override
-    public void messageStory(DelayMessage t) {
+    public void messageStory(DelayMessage t,boolean checkTimeVaild) {
         if (CommonState.nowState!= CommonState.RunStatus.RUNING.getCode()){
             Logger.error("延迟组件不可用，请稍后重试");
             throw new SendFailException("延迟组件不可用，请稍后重试");
@@ -154,7 +158,7 @@ public class ProcessMessageStory implements MessageStroy {
             throw new SendFailException("延迟消息不能为空");
         }
         ValidationUtil.validateBean(t);
-        if (System.currentTimeMillis()>t.getExecuteTime()){
+        if (System.currentTimeMillis()>t.getExecuteTime()&&checkTimeVaild){
             Logger.error("延迟执行时间必须大于当前时间");
             throw new SendFailException("延迟执行时间必须大于当前时间");
         }

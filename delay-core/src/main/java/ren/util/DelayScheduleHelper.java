@@ -88,7 +88,10 @@ public class DelayScheduleHelper {
         //处理速率配置
         sleepTime = Integer.valueOf(GlobalConfig.messageDealRate);
         //todo 持久化的数据再加载到内存中
-
+        Runtime.getRuntime().addShutdownHook(new Thread(()->{
+            Logger.warn("立即执行消息保存操作");
+            messageStroy.runPersidOnce(true);
+        }));
         Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
             @Override
             public void run() {
@@ -123,7 +126,7 @@ public class DelayScheduleHelper {
      * @param delayMessage
      */
     public void sendDelayMessage(DelayMessage delayMessage){
-        messageStroy.messageStory(delayMessage);
+        messageStroy.messageStory(delayMessage,true);
     }
 
     class TimeWheel implements Runnable{
