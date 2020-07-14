@@ -15,6 +15,7 @@ import ren.util.CommonState;
 import ren.util.DelayScheduleHelper;
 
 import javax.annotation.PostConstruct;
+import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -31,7 +32,7 @@ public class SpringInitListenable implements  ApplicationContextAware {
     public static Map<Class, List<FieldRelateObj>> annotationMethodListMap = new HashMap<Class, List<FieldRelateObj>>();
 
     @PostConstruct
-    public void init() {
+    public void init() throws IOException {
         //项目的初始化改到这个地方，在这个地方进行容器对象的获取分析，然后进行组件的DelayScheduleHelper的
         // init，还有就是MessageHandler的构建
         annotionScan();
