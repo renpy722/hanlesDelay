@@ -165,13 +165,6 @@ public class FilePersistImpl implements Persist {
     public void init(){
         try {
             initCheck();
-
-            /**todo 创建一个死循环线程，来处理持久化，这里的持久化参数考虑接入用户自定义，所以还需要改造读取用户配置信息的
-             * 逻辑，创建一个全局的配置中心，将所有的数据存储在其中，各个组件想用的时候随时能用
-             */
-            //todo 检查存储文件是否存在，不存在则创建
-
-            //todo 需要考虑消息的识别问题，可以考虑时间key与List的方式存储为properties文件
         }catch (Exception e){
             LOGGER.error("开启消息持久化失败");
         }

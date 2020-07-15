@@ -2,7 +2,7 @@
 ###使用方只需要发送带有执行时间的DelayMessage消息，在对应时间即可回调对应方法
 
 ###模块介绍
-项目目前分为两个模块：delay-core和delay-boot
+项目目前分为两个模块：delay-core和delay-boot，运行环境：jdk大版本1.8以上
 
 delay-core实现的调度的核心功能：定义了MessageStory消息存储接口、定义了MessageHandler消息处理接口
     以及Persist消息持久化接口，并且提供了基于内存运行模式的消息存储实现，基于文件系统的消息持久化实现
@@ -29,6 +29,7 @@ delay-boot主要是针对使用者的接入落地：目前提供了基于spring�
         <version>1.0-SNAPSHOT</version>
     </dependency>
     
+    需要添加一个包路径的扫描：cn.ren
 发送延迟消息
 ```java
     DelayMessage<Persons> pers = new DelayMessage<>();

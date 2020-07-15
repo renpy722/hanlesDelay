@@ -87,7 +87,6 @@ public class DelayScheduleHelper {
                 , 60, TimeUnit.SECONDS,new ArrayBlockingQueue<>(Integer.valueOf(GlobalConfig.threadQueueSize)));
         //处理速率配置
         sleepTime = Integer.valueOf(GlobalConfig.messageDealRate);
-        //todo 持久化的数据再加载到内存中
         Runtime.getRuntime().addShutdownHook(new Thread(()->{
             Logger.warn("立即执行消息保存操作");
             messageStroy.runPersidOnce(true);
