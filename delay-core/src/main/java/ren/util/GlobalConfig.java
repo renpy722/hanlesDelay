@@ -77,14 +77,14 @@ public class GlobalConfig {
         if (configIsOk){
 
             try {
-                String runModule = properties.getProperty("delay.module").trim();
-                String threadCore = properties.getProperty("delay.thread.core").trim();
-                String threadMax = properties.getProperty("delay.thread.max").trim();
-                String threadQueueSize = properties.getProperty("delay.thread.queueSize").trim();
-                String messageDealRate = properties.getProperty("delay.deal.rate").trim();
-                String persistSwitch = properties.getProperty("delay.persist.switch").trim();
-                String persistTime = properties.getProperty("delay.persist.time").trim();
-                String persistRate = properties.getProperty("delay.persist.rate").trim();
+                String runModule = properties.getProperty("delay.module");
+                String threadCore = properties.getProperty("delay.thread.core");
+                String threadMax = properties.getProperty("delay.thread.max");
+                String threadQueueSize = properties.getProperty("delay.thread.queueSize");
+                String messageDealRate = properties.getProperty("delay.deal.rate");
+                String persistSwitch = properties.getProperty("delay.persist.switch");
+                String persistTime = properties.getProperty("delay.persist.time");
+                String persistRate = properties.getProperty("delay.persist.rate");
 
                 GlobalConfig.runModule = runModule;
                 GlobalConfig.threadCore = Integer.valueOf(threadCore);

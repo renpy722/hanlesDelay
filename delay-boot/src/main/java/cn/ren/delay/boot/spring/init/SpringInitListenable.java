@@ -21,7 +21,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.*;
 
-@Component
 public class SpringInitListenable implements  ApplicationContextAware {
 
     private static Logger LOGGER = LoggerFactory.getLogger(SpringInitListenable.class);
